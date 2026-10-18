@@ -1,4 +1,4 @@
-/* EXE SNOWGLOBE · engine v1.0 · form&soul.exe */
+/* EXE SNOWGLOBE · engine v1.1 · form&soul.exe */
 (function () {
   "use strict";
   const TAU = Math.PI * 2;
@@ -29,8 +29,8 @@
     shakeCooldown: 8, snowCooldown: 20,
     /* TEXTOS */
     names: true,
-    title: "STARTING|SOON",
-    subtitle: "grab a cocoa \u00b7 shake the globe with !shake",
+    title: "LET IT|SETTLE",     // «|» separa líneas; en pantalla completa la última es la protagonista
+    subtitle: "One more shake before we go live \u00b7 {shake}",   // {shake} = el comando configurado
     reducedMotion: null,       // null = respeta la preferencia del sistema
     lightsLabel: "LIGHTS", giftsLabel: "GIFTS",
     treeText: "LIGHT THE TREE", readyText: "TREE READY", sleighText: "CALL SANTA'S SLEIGH",
@@ -47,6 +47,254 @@
         "Cuando el pueblo está encendido y se cumple la meta de regalos, se enciende el árbol. Los regalos que llegan antes se guardan.",
   };
 
+  /* ---------- LETTERING DEL TÍTULO (solo pantalla completa) ----------
+     Madera pintada marfil, canto dorado fino, relieve suave, sombra corta y nieve solo sobre techos rectos.
+     Fuentes: Elsie y Elsie Swash Caps (Alejandro Inler) y Quicksand — SIL Open Font License 1.1 (fonts/).
+     El título se compone como texto SVG real a partir de los ajustes y se rasteriza una vez por título:
+     se pinta en la misma capa que el título anterior (debajo del globo, el trineo y las celebraciones).
+     Si las fuentes no cargan, se usa el título clásico: nunca se dibujan los dos. */
+  const LT = { CX: 1466, MAXW: 700, CY: 470, P_MAX: 168, P_MIN: 104, LS_BIG: 0.02, LS_SMALL: 0.12, X0: 1040, W: 840,
+    BIG: "SG Elsie", SWASH: "SG Elsie Swash", SANS: "SG Quicksand", WB: 900, WS: 400 };
+  const LT_FONTS = [["SG Elsie", 400, "elsie-latin-400-normal.woff2", true], ["SG Elsie", 900, "elsie-latin-900-normal.woff2", true],
+    ["SG Elsie Swash", 900, "elsie-swash-caps-latin-900-normal.woff2", true],
+    ["SG Quicksand", 600, "quicksand-latin-600-normal.woff2", false], ["SG Quicksand", 700, "quicksand-latin-700-normal.woff2", false]];
+  const LT_SWASH = /^[ACEGLPS]/;             // mayúsculas de lazo que se leen bien a gran tamaño
+  const LT_SNOW = /[BDEFPRTZ57]/;            // letras con techo recto
+  const SVGNS = "http://www.w3.org/2000/svg";
+  const LT_DEFS = `<defs>
+<linearGradient id="sgl-ivory" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fbf4e1"/><stop offset=".55" stop-color="#f1e4c6"/><stop offset="1" stop-color="#e2cfa7"/></linearGradient>
+<linearGradient id="sgl-gold" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e6c88a"/><stop offset=".45" stop-color="#c49d5a"/><stop offset="1" stop-color="#9c7743"/></linearGradient>
+<linearGradient id="sgl-snow" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset=".55" stop-color="#f3f6fb"/><stop offset=".86" stop-color="#dae3ee"/><stop offset="1" stop-color="#b7c6da"/></linearGradient>
+<filter id="sgl-shadow" x="-10%" y="-20%" width="120%" height="150%" color-interpolation-filters="sRGB"><feDropShadow dx="0" dy="1.5" stdDeviation="1" flood-color="#1a0f05" flood-opacity=".32"/><feDropShadow dx="0" dy="5" stdDeviation="5" flood-color="#04070f" flood-opacity=".38"/></filter>
+<filter id="sgl-face" x="-5%" y="-10%" width="110%" height="120%" color-interpolation-filters="sRGB"><feGaussianBlur in="SourceAlpha" stdDeviation="2.2" result="b"/><feSpecularLighting in="b" surfaceScale="2.4" specularConstant=".6" specularExponent="16" lighting-color="#fff6e2" result="spec"><feDistantLight azimuth="235" elevation="50"/></feSpecularLighting><feComposite in="spec" in2="SourceAlpha" operator="in" result="specIn"/><feOffset in="SourceAlpha" dx="-1.6" dy="-2.2" result="sh"/><feComposite in="SourceAlpha" in2="sh" operator="out" result="edge"/><feGaussianBlur in="edge" stdDeviation="1.3" result="edgeB"/><feFlood flood-color="#8a6a3c" flood-opacity=".3"/><feComposite in2="edgeB" operator="in"/><feComposite in2="SourceAlpha" operator="in" result="inner"/><feTurbulence type="fractalNoise" baseFrequency="0.004 0.11" numOctaves="2" seed="11" result="grain"/><feColorMatrix in="grain" type="matrix" values="0 0 0 0 .52  0 0 0 0 .42  0 0 0 0 .27  0 0 0 .16 -.03" result="grainC"/><feComposite in="grainC" in2="SourceAlpha" operator="in" result="grainIn"/><feMerge><feMergeNode in="SourceGraphic"/><feMergeNode in="grainIn"/><feMergeNode in="inner"/><feMergeNode in="specIn"/></feMerge></filter>
+<filter id="sgl-snowtex" x="-20%" y="-80%" width="140%" height="260%" color-interpolation-filters="sRGB"><feTurbulence type="fractalNoise" baseFrequency="0.7" numOctaves="2" seed="3" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="1.4" xChannelSelector="R" yChannelSelector="G" result="rough"/><feGaussianBlur in="rough" stdDeviation="0.3" result="soft"/><feGaussianBlur in="SourceAlpha" stdDeviation="2.6" result="ab"/><feDiffuseLighting in="ab" surfaceScale="4" diffuseConstant="1" lighting-color="#ffffff" result="vol"><feDistantLight azimuth="250" elevation="50"/></feDiffuseLighting><feComposite in="soft" in2="vol" operator="arithmetic" k1=".45" k2=".64" k3="0" k4="0" result="lit"/><feTurbulence type="fractalNoise" baseFrequency="1.7" numOctaves="1" seed="21" result="g"/><feColorMatrix in="g" type="matrix" values="0 0 0 0 .62  0 0 0 0 .7  0 0 0 0 .82  .8 0 0 0 -.4" result="gC"/><feComposite in="gC" in2="soft" operator="in" result="grain"/><feMerge><feMergeNode in="lit"/><feMergeNode in="grain"/></feMerge><feComposite in2="soft" operator="in"/></filter>
+<filter id="sgl-snowshadow" x="-20%" y="-60%" width="140%" height="240%"><feGaussianBlur stdDeviation="1.1"/></filter>
+</defs>`;
+
+  // fuentes: se cargan una vez por página (cada copia del motor las reutiliza)
+  const ltFontCache = {};
+  function ltLoadFonts(urlOf) {
+    const key = urlOf(LT_FONTS[0][2]);
+    if (ltFontCache[key]) return ltFontCache[key];
+    const b64 = (buf) => { const u = new Uint8Array(buf); let s = ""; for (let i = 0; i < u.length; i += 0x8000) s += String.fromCharCode.apply(null, u.subarray(i, i + 0x8000)); return btoa(s); };
+    const p = Promise.all(LT_FONTS.map(([fam, w, file, embed]) => fetch(urlOf(file)).then((r) => { if (!r.ok) throw new Error("font " + file); return r.arrayBuffer(); })
+      .then((buf) => { const ff = new FontFace(fam, buf, { weight: String(w) }); document.fonts.add(ff); return ff.load().then(() => embed ? `@font-face{font-family:'${fam}';font-weight:${w};src:url(data:font/woff2;base64,${b64(buf)}) format('woff2')}` : ""); })))
+      .then((css) => css.join(""));
+    p.catch(() => { delete ltFontCache[key]; });
+    return (ltFontCache[key] = p);
+  }
+  // SVG de medida (invisible, fuera de pantalla): da la posición real de cada letra
+  let ltHost = null, ltUsers = 0;
+  function ltHostSvg() {
+    if (ltHost && ltHost.isConnected) return ltHost;
+    ltHost = document.createElementNS(SVGNS, "svg");
+    ltHost.setAttribute("viewBox", "0 0 1920 1080"); ltHost.setAttribute("width", "1920"); ltHost.setAttribute("height", "1080"); ltHost.setAttribute("aria-hidden", "true");
+    ltHost.setAttribute("style", "position:fixed;left:-6000px;top:0;width:1920px;height:1080px;opacity:0;pointer-events:none");
+    ltHost.innerHTML = LT_DEFS + '<g class="sgl-letters"></g><g class="sgl-snow"></g>';
+    (document.body || document.documentElement).appendChild(ltHost);
+    return ltHost;
+  }
+  function ltSeeded(str) { let h = 2166136261; for (const ch of str) h = Math.imul(h ^ ch.charCodeAt(0), 16777619); return () => ((h = Math.imul(h ^ (h >>> 15), 2246822507), h = Math.imul(h ^ (h >>> 13), 3266489909), (h ^= h >>> 16) >>> 0) / 4294967296); }
+  function ltNoise(rnd, n) { const v = Array.from({ length: n + 2 }, () => rnd() * 2 - 1); return (u) => { const x = Math.max(0, Math.min(n, u * n)), i = Math.floor(x), f = x - i, w = (1 - Math.cos(Math.PI * f)) / 2; return v[i] * (1 - w) + v[i + 1] * w; }; }
+
+  function createLettering(urlOf) {
+    const mc = document.createElement("canvas").getContext("2d");
+    let state = "loading", art = null, m = null, want = null, gen = 0, dead = false;
+    const since = performance.now();
+    ltUsers += 1;
+    const fontsP = ltLoadFonts(urlOf);
+    fontsP.catch(() => { state = "failed"; });
+
+    const hasLS = "letterSpacing" in mc;              // mismo cálculo que la revisión aprobada; sin soporte, se suma a mano
+    const width = (str, size, big, swash) => {
+      const sp = size * (big ? LT.LS_BIG : LT.LS_SMALL); let ls = 0;
+      if (hasLS) mc.letterSpacing = sp + "px"; else ls = sp * str.length;
+      if (big && swash && LT_SWASH.test(str)) {
+        mc.font = `${LT.WB} ${size}px "${LT.SWASH}"`; const a = mc.measureText(str[0]).width;
+        mc.font = `${LT.WB} ${size}px "${LT.BIG}"`; return a + mc.measureText(str.slice(1)).width + ls;
+      }
+      mc.font = `${big ? LT.WB : LT.WS} ${size}px "${LT.BIG}"`; return mc.measureText(str).width + ls;
+    };
+    const capH = (size, big) => { if (hasLS) mc.letterSpacing = "0px"; mc.font = `${big ? LT.WB : LT.WS} ${size}px "${LT.BIG}"`; return mc.measureText("H").actualBoundingBoxAscent; };
+    // la última línea es la protagonista; las anteriores van pequeñas. «|» fuerza el corte; si no, se elige el mejor.
+    function plan(raw) {
+      const T = raw.toUpperCase().replace(/\s+/g, " ").trim();
+      const fitBig = (s, sw = true) => { for (let P = LT.P_MAX; P >= LT.P_MIN; P -= 2) if (width(s, P, true, sw) <= LT.MAXW) return P; return 0; };
+      const smallSize = (P, s) => { let S = Math.max(40, Math.min(66, Math.round(P * 0.4))); while (S > 30 && width(s, S, false) > LT.MAXW) S -= 2; return S; };
+      const cands = [];
+      if (T.includes("|")) { const L = T.split("|").map((x) => x.trim()).filter(Boolean); cands.push({ small: L.slice(0, -1), big: [L[L.length - 1] || ""] }); }
+      else { const w = T.split(" "); cands.push({ small: [], big: [T] }); for (let k = 1; k < w.length; k++) cands.push({ small: [w.slice(0, k).join(" ")], big: [w.slice(k).join(" ")] }); }
+      let best = null;
+      for (const c of cands) {
+        let P = Math.min(...c.big.map((b, i) => fitBig(b, i > 0)));   // primera línea medida con la mayúscula normal (más ancha): margen como en la revisión aprobada
+        if (!P) {                                      // no cabe ni al mínimo razonable: la protagonista pasa a dos o tres líneas
+          const fitAny = (x, sw) => { for (let q = LT.P_MAX; q >= 40; q -= 2) if (width(x, q, true, sw) <= LT.MAXW) return q; return 0; };
+          const w = c.big[0].split(" "), opts = [[c.big[0]]];
+          for (let i = 1; i < w.length; i++) { opts.push([w.slice(0, i).join(" "), w.slice(i).join(" ")]);
+            for (let j = i + 1; j < w.length; j++) opts.push([w.slice(0, i).join(" "), w.slice(i, j).join(" "), w.slice(j).join(" ")]); }
+          const sized = opts.map((o) => ({ o, q: Math.min(...o.map((x, k) => fitAny(x, k === 0))) })).filter((o) => o.q);
+          let bo = null;
+          for (const n of [1, 2, 3]) { const g = sized.filter((o) => o.o.length === n && o.q >= 96).sort((a, b) => b.q - a.q)[0]; if (g) { bo = g; break; } }
+          if (!bo) bo = sized.sort((a, b) => b.q - a.q)[0] || { o: [c.big[0]], q: 40 };
+          c.big = bo.o; P = c.big.length === 1 ? bo.q : Math.round(Math.min(bo.q, LT.P_MAX * (c.big.length === 2 ? 0.86 : 0.72)));
+        }
+        const sl = c.small.join(" ").length, bl = Math.max(...c.big.map((x) => x.length));
+        const score = P - Math.max(0, sl - bl) * 6 - (c.small.length ? 0 : 6) - (c.small.length + c.big.length > 2 ? 14 : 0);
+        if (!best || score > best.score) best = Object.assign({}, c, { P, score });
+      }
+      best.S = best.small.length ? smallSize(best.P, best.small.join(" ")) : 0;
+      return best;
+    }
+    function lineEls(str, y, size, big, swash) {
+      const g = document.createElementNS(SVGNS, "g");
+      const mk = () => {
+        const t = document.createElementNS(SVGNS, "text");
+        t.setAttribute("x", LT.CX); t.setAttribute("y", y); t.setAttribute("text-anchor", "middle"); t.setAttribute("font-size", size);
+        t.setAttribute("letter-spacing", (size * (big ? LT.LS_BIG : LT.LS_SMALL)).toFixed(2)); t.setAttribute("font-family", LT.BIG); t.setAttribute("font-weight", big ? LT.WB : LT.WS);
+        if (swash && LT_SWASH.test(str)) { const s = document.createElementNS(SVGNS, "tspan"); s.setAttribute("font-family", LT.SWASH); s.textContent = str[0]; t.appendChild(s); t.appendChild(document.createTextNode(str.slice(1))); }
+        else t.textContent = str;
+        return t;
+      };
+      const edge = mk(), face = mk(), ew = Math.max(2, size * (big ? 0.026 : 0.03));
+      edge.setAttribute("fill", "url(#sgl-gold)"); edge.setAttribute("stroke", "url(#sgl-gold)"); edge.setAttribute("stroke-width", ew); edge.setAttribute("stroke-linejoin", "round"); edge.setAttribute("filter", "url(#sgl-shadow)");
+      face.setAttribute("fill", "url(#sgl-ivory)"); face.setAttribute("filter", "url(#sgl-face)");
+      g.appendChild(edge); g.appendChild(face);
+      return { g, face, size, big, swash: !!(swash && LT_SWASH.test(str)) };
+    }
+    function snow(built, G) {
+      const runs = [], glyphs = [];
+      built.forEach((b, li) => {
+        const t = b.face, n = t.getNumberOfChars(), str = t.textContent;
+        for (let i = 0; i < n; i++) {
+          const ch = str[i]; if (ch === " ") continue;
+          const sp = t.getStartPositionOfChar(i), ex = t.getExtentOfChar(i);
+          glyphs.push({ ch, x0: ex.x, x1: ex.x + ex.width - b.size * (b.big ? LT.LS_BIG : LT.LS_SMALL), sx: sp.x, base: sp.y, size: b.size, line: li, big: b.big, swash: b.swash && i === 0, idx: glyphs.length });
+        }
+      });
+      for (const g of glyphs) {
+        if (g.swash || !LT_SNOW.test(g.ch) || !g.big || g.size < 70) continue;   // la letra de lazo queda limpia; en la línea pequeña la nieve sería una mota
+        const fs = g.size, W = Math.ceil(g.x1 - g.x0) + 8, H = Math.ceil(fs * 1.2), ox = Math.floor(g.x0) - 4, oy = Math.floor(g.base - fs * 1.1);
+        const c = document.createElement("canvas"); c.width = W; c.height = H; const o = c.getContext("2d");
+        o.font = `${LT.WB} ${fs}px "${LT.BIG}"`; o.fillStyle = "#fff"; o.fillText(g.ch, g.sx - ox, g.base - oy);
+        const img = o.getImageData(0, 0, W, H).data, A = (x, y) => img[((y - oy) * W + (x - ox)) * 4 + 3];
+        const tops = [];
+        for (let x = Math.floor(g.x0); x <= Math.ceil(g.x1); x++) { let y = oy; while (y < g.base && A(x, y) < 128) y++; tops.push([x, y < g.base ? y : null]); }
+        const valid = tops.filter((t) => t[1] !== null); if (!valid.length) continue;
+        const gTop = Math.min(...valid.map((t) => t[1])); let s = null;
+        for (let k = 0; k <= tops.length; k++) {
+          const t = tops[k], ok = t && t[1] !== null && t[1] <= gTop + fs * 0.035 && (k === 0 || tops[k - 1][1] === null || Math.abs(t[1] - tops[k - 1][1]) <= 1);
+          if (ok && s === null) s = k;
+          if ((!ok || k === tops.length) && s !== null) {
+            const e = k - 1, top = Math.min(...tops.slice(s, e + 1).map((q) => q[1])), d = Math.max(3, Math.round(fs * 0.04));
+            const drop = (j) => { const q = tops[j]; return !q || q[1] === null || q[1] > top + fs * 0.06; };
+            const len = tops[e][0] - tops[s][0], dl = drop(s - d), dr = drop(e + d);
+            if (len >= fs * 0.36 && (dl && dr || (dl || dr) && len >= fs * 0.34)) runs.push({ g, xa: tops[s][0], xb: tops[e][0], prof: tops.slice(s, e + 1), taper: dl && dr ? null : dl ? "R" : "L" });
+            s = null;
+          }
+        }
+      }
+      const rnd = ltSeeded(built.map((b) => b.text).join("|")); runs.sort((a, b) => (b.xb - b.xa) / b.g.size - (a.xb - a.xa) / a.g.size);
+      const pick = [], per = {};
+      for (const r of runs) {
+        if ((per[r.g.line] || 0) >= 2 || pick.length >= 3) continue;
+        if (pick.some((p) => p.g.line === r.g.line && Math.abs(p.g.idx - r.g.idx) <= 1)) continue;
+        pick.push(r); per[r.g.line] = (per[r.g.line] || 0) + 1;
+      }
+      for (const r of pick) mound(G, r, rnd);
+      return pick.map((r) => r.g.ch + "@" + r.g.line);
+    }
+    function mound(G, r0, rnd) {
+      const fs = r0.g.size, k = fs / 140, full = !r0.taper && rnd() < 0.55, L0 = r0.xb - r0.xa, cut = full ? 0 : (0.15 + rnd() * 0.2) * L0, left = r0.taper ? r0.taper === "L" : rnd() < 0.5;
+      const r = { xa: r0.xa + (left ? cut : 0), xb: r0.xb - (left ? 0 : cut), prof: r0.prof.slice(left ? Math.round(cut) : 0, r0.prof.length - (left ? 0 : Math.round(cut))) };
+      const tapL = !full && left, tapR = !full && !left, len = r.xb - r.xa;
+      const hMax = Math.max(6 * k, Math.min(19 * k, len * 0.26)) * (0.7 + 0.45 * rnd());
+      const ovL = (3 + rnd() * 4) * k, ovR = (3 + rnd() * 4) * k, dL = (3 + rnd() * 3) * k, dR = (3 + rnd() * 3) * k;
+      const nA = ltNoise(rnd, 2), nB = ltNoise(rnd, Math.max(3, Math.round(len / (14 * k)))), nC = ltNoise(rnd, Math.max(6, Math.round(len / (4.5 * k)))), nL = ltNoise(rnd, Math.max(4, Math.round(len / (9 * k))));
+      const topAt = (x) => r.prof[Math.max(0, Math.min(r.prof.length - 1, Math.round(x - r.xa)))][1];
+      const U = (x) => Math.max(0, Math.min(1, (x - r.xa) / len));
+      const skew = 0.7 + rnd() * 0.75;
+      const h = (x) => { const u0 = U(x), u = Math.pow(u0, skew);
+        const env = (tapL && u < .5) || (tapR && u > .5) ? Math.pow(Math.sin(Math.PI * u), .7) : .45 + .55 * Math.pow(Math.sin(Math.PI * u), .55);
+        return Math.max(1.5 * k, hMax * env * (1 + .26 * nA(u0) + .16 * nB(u0)) + .6 * k * nC(u0)); };
+      const lip = (x) => { const u = U(x), e = Math.pow(Math.sin(Math.PI * u), .35); return Math.max(0, (1 + 1.4 * nL(u)) * k * e); };
+      const y0 = topAt(r.xa), y1 = topAt(r.xb), hL = h(r.xa), hR = h(r.xb), f = (v) => v.toFixed(1);
+      let d = `M${f(r.xa + 2)},${f(y0 + 1)} `;
+      d += tapL ? `L${f(r.xa + 3)},${f(y0 - hL)} ` : `C${f(r.xa - ovL * .3)},${f(y0 + dL)} ${f(r.xa - ovL * 1.25)},${f(y0 + dL * .6)} ${f(r.xa - ovL)},${f(y0 - hL * .35)} C${f(r.xa - ovL * .8)},${f(y0 - hL * .95)} ${f(r.xa - 1)},${f(y0 - hL * 1.05)} ${f(r.xa + 3)},${f(y0 - hL)} `;
+      const pts = []; for (let x = r.xa + 3; x <= r.xb - 3; x += 1) pts.push([x, topAt(x) - h(x)]);
+      for (let i = 1; i < pts.length - 1; i += 2) d += `Q${f(pts[i][0])},${f(pts[i][1])} ${f((pts[i][0] + pts[i + 1][0]) / 2)},${f((pts[i][1] + pts[i + 1][1]) / 2)} `;
+      d += `L${f(r.xb - 3)},${f(y1 - hR)} `;
+      d += tapR ? `L${f(r.xb - 2)},${f(y1 + 1)} ` : `C${f(r.xb + 1)},${f(y1 - hR * 1.05)} ${f(r.xb + ovR * .8)},${f(y1 - hR * .95)} ${f(r.xb + ovR)},${f(y1 - hR * .35)} C${f(r.xb + ovR * 1.25)},${f(y1 + dR * .6)} ${f(r.xb + ovR * .3)},${f(y1 + dR)} ${f(r.xb - 2)},${f(y1 + 1)} `;
+      for (let x = r.xb - 3; x >= r.xa + 3; x -= 2) d += `L${f(x)},${f(topAt(x) + 1 + lip(x))} `;
+      d += "Z";
+      const g = document.createElementNS(SVGNS, "g");
+      g.innerHTML = `<path d="${d}" fill="rgba(58,38,18,.3)" transform="translate(.4,1.6)" filter="url(#sgl-snowshadow)"/><path d="${d}" fill="url(#sgl-snow)" filter="url(#sgl-snowtex)"/>`;
+      G.appendChild(g);
+    }
+    // compone el título en el SVG de medida, coloca la nieve y lo rasteriza en su franja (x 1040–1880)
+    function compose(title, fontCss) {
+      const host = ltHostSvg(), L = host.querySelector(".sgl-letters"), G = host.querySelector(".sgl-snow");
+      L.textContent = ""; G.textContent = "";
+      const raw = String(title || "").trim();
+      const p = raw ? plan(raw) : { small: [], big: [], P: 0, S: 0 };
+      const rows = [...p.small.map((s) => ({ s, size: p.S, big: false })), ...p.big.map((s, i) => ({ s, size: p.P, big: true, swash: i === 0 }))];
+      const gap = (r, prev) => r.big ? r.size * (prev && prev.big ? 0.32 : 0.24) : r.size * 0.5;
+      let h = 0; rows.forEach((r, i) => { r.cap = capH(r.size, r.big); h += r.cap + (i ? gap(r, rows[i - 1]) : 0); });
+      const subGap = rows.length ? 46 : 0, total = h + subGap + 31 + 22 + 26;
+      let y = LT.CY - total / 2; const built = [];
+      rows.forEach((r, i) => { y += (i ? gap(r, rows[i - 1]) : 0) + r.cap; const e = lineEls(r.s, y, r.size, r.big, r.swash); L.appendChild(e.g); built.push(Object.assign(e, { y, text: r.s })); });
+      const metrics = { subTop: y + subGap - 6, namesTop: y + subGap + 31 + 22 + 4, plan: p, snow: built.length ? snow(built, G) : [] };
+      if (!built.length) return Promise.resolve({ canvas: null, m: metrics });
+      const clone = host.cloneNode(true); clone.removeAttribute("style");
+      const st = document.createElementNS(SVGNS, "style"); st.textContent = fontCss; clone.insertBefore(st, clone.firstChild);
+      const url = URL.createObjectURL(new Blob([new XMLSerializer().serializeToString(clone)], { type: "image/svg+xml" }));
+      return new Promise((res, rej) => { const im = new Image(); im.onload = () => res(im); im.onerror = () => rej(new Error("lettering svg")); im.src = url; })
+        .then((im) => { const c = document.createElement("canvas"); c.width = LT.W; c.height = 1080; c.getContext("2d").drawImage(im, LT.X0, 0, LT.W, 1080, 0, 0, LT.W, 1080); URL.revokeObjectURL(url); return { canvas: c, m: metrics }; },
+              (e) => { URL.revokeObjectURL(url); throw e; });
+    }
+    function request(title) {
+      title = String(title || "");
+      if (title === want || dead) return; want = title; const my = ++gen;
+      fontsP.then((css) => compose(title, css)).then((res) => { if (dead || my !== gen) return; art = res.canvas; m = res.m; state = "ready"; })
+        .catch(() => { if (my === gen && state !== "ready") state = "failed"; });
+    }
+    // subtítulo (comando en dorado) y nombres recientes, centrados bajo el título
+    function fitFont(ctx, weight, base, min, measure) { let fs = base; ctx.font = `${weight} ${fs}px "${LT.SANS}"`; while (measure(fs) > LT.MAXW && fs > min) { fs -= 1; ctx.font = `${weight} ${fs}px "${LT.SANS}"`; } return fs; }
+    function drawUnder(ctx, subtitle, cmd, names) {
+      ctx.save(); ctx.textAlign = "left"; ctx.textBaseline = "alphabetic"; ctx.shadowBlur = 0;
+      if (subtitle) {
+        const i = cmd ? subtitle.indexOf(cmd) : -1, parts = i < 0 ? [[subtitle, 0]] : [[subtitle.slice(0, i), 0], [cmd, 1], [subtitle.slice(i + cmd.length), 0]];
+        const ls = (fs) => { if ("letterSpacing" in ctx) ctx.letterSpacing = (fs * 0.01).toFixed(2) + "px"; };
+        const wOf = (fs) => { ls(fs); return parts.reduce((a, q) => a + ctx.measureText(q[0]).width, 0); };
+        const fs = fitFont(ctx, 600, 31, 22, wOf); wOf(fs);
+        let x = LT.CX - wOf(fs) / 2; const yb = m.subTop + fs;
+        for (const [t, gold] of parts) { if (!t) continue; ctx.fillStyle = gold ? "#e6c27c" : "rgba(239,229,210,0.9)"; ctx.fillText(t, x, yb); x += ctx.measureText(t).width; }
+      }
+      if (names.length) {
+        if ("letterSpacing" in ctx) ctx.letterSpacing = "0px";
+        const wOf = () => names.reduce((a, n) => a + 19 + 12 + ctx.measureText(n).width, 0) + (names.length - 1) * 26;
+        const fs = fitFont(ctx, 700, 25, 18, wOf), yb = m.namesTop + fs;   // copo de 19 px + 12 px, 26 px entre nombres
+        let x = LT.CX - wOf() / 2; ctx.fillStyle = ctx.strokeStyle = "rgba(255,226,170,0.88)"; ctx.lineWidth = 1.52; ctx.lineCap = "round";
+        for (const n of names) {
+          const cx = x + 9.5, cy = yb - 7.5;
+          for (const a of [0, 60, 120]) { const r = a * Math.PI / 180, dx = Math.sin(r) * 7.6, dy = Math.cos(r) * 7.6; ctx.beginPath(); ctx.moveTo(cx - dx, cy - dy); ctx.lineTo(cx + dx, cy + dy); ctx.stroke(); }
+          x += 31; ctx.fillText(n, x, yb); x += ctx.measureText(n).width + 26;
+        }
+      }
+      ctx.restore();
+    }
+    return {
+      request,
+      // true = el lettering se encarga (dibujado o aún cargando); false = usar el título clásico
+      draw(ctx, subtitle, cmd, names) {
+        if (state === "ready") { if (art) ctx.drawImage(art, LT.X0, 0); drawUnder(ctx, subtitle, cmd, names); return true; }
+        if (state === "failed") return false;
+        return performance.now() - since < 6000;
+      },
+      info: () => ({ state, plan: m && m.plan, snow: m && m.snow, title: want }),
+      destroy() { dead = true; ltUsers -= 1; if (ltUsers <= 0 && ltHost) { ltHost.remove(); ltHost = null; ltUsers = 0; } },
+    };
+  }
+
   function loadImage(src) {
     return new Promise((res, rej) => { const i = new Image(); i.crossOrigin = "anonymous"; i.onload = () => res(i); i.onerror = rej; i.src = src; });
   }
@@ -55,12 +303,13 @@
     const cfg = Object.assign({}, DEFAULTS, opts.config || {});
     const DEMO = !!opts.demo;                           // herramientas de demo (llenado directo, preset, diagnóstico): solo en páginas de prueba
     const RM = cfg.reducedMotion !== null ? !!cfg.reducedMotion : !!(window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches);
-    const subtitleText = () => cfg.subtitle;
+    const subtitleText = () => String(cfg.subtitle || "").split("{shake}").join(cfg.shakeCmd);
     const base = (opts.assets || "").replace(/\/?$/, "/");
     const canvas = opts.canvas, ctx = canvas.getContext("2d");
     const storage = opts.storage || null;
     const F = opts.files || null;                       // vista previa autocontenida: recursos embebidos
     const url = (f) => (F && F[f]) || base + f;
+    const fontUrl = (f) => (F && F["fonts/" + f]) || (opts.fonts ? opts.fonts.replace(/\/?$/, "/") : base + "../fonts/") + f;
     const meta = F && F["scene.json"] ? F["scene.json"] : await (await fetch(base + "scene.json")).json();
     const [imgOff, imgLights, imgAmb, imgSleigh] = await Promise.all(
       ["globe_off.webp", "lights.webp", "ambient.webp", "sleigh.webp"].map((f) => loadImage(url(f))));
@@ -101,6 +350,12 @@
       }
     }
     layout();
+    let lettering = null;                               // título de pantalla completa (el formato esquina no lleva texto)
+    function syncLettering() {
+      if (cfg.layout === "corner" || cfg.lettering === false || typeof document === "undefined" || !window.FontFace || !window.fetch || !window.XMLSerializer) return;
+      try { if (!lettering) lettering = createLettering(fontUrl); lettering.request(cfg.title); } catch (e) { lettering = null; cfg.lettering = false; }
+    }
+    syncLettering();
 
     /* ---------- runtime ---------- */
     let manualT = null; const now = () => (manualT !== null ? manualT : performance.now() / 1000);
@@ -264,7 +519,7 @@
         return false;
       },
       reset() { if (destroyed) return; S = fresh(); lit.clear(); queue.length = 0; celeb = null; pendCeleb.length = 0; celebCount.village = celebCount.gifts = 0; grandCount = 0; treeAnim = null; starBurst = null; grandAt = null; gold.length = 0; sleigh = null; labels.length = 0; labelQ.length = 0; save(); },
-      debug: () => ({ subtitle: subtitleText(), storageKey: cfg.storageKey, labels: labels.map((l) => ({ kind: l.kind, text: l.text, count: l.count, box: l.box })), pending: labelQ.length, lights: S.lights.length, gifts: S.gifts, treeLit: S.treeLit, grandCount, celebCount, celeb: celeb && celeb.type, sleighs: S.sleighs, queue: queue.length }),
+      debug: () => ({ subtitle: subtitleText(), lettering: lettering ? lettering.info() : null, storageKey: cfg.storageKey, labels: labels.map((l) => ({ kind: l.kind, text: l.text, count: l.count, box: l.box })), pending: labelQ.length, lights: S.lights.length, gifts: S.gifts, treeLit: S.treeLit, grandCount, celebCount, celeb: celeb && celeb.type, sleighs: S.sleighs, queue: queue.length }),
       state: () => S,
       snapshot: () => snapshot(),
       totals: () => ({ lights: S.lights.length + queue.filter((j) => j.k === "light").length, gifts: S.gifts + queue.filter((j) => j.k === "gift").length, shakes: S.shakes, bits: S.bitsBank, tip: S.tipBank }),
@@ -274,7 +529,7 @@
         while (S.lights.length < Math.min(o.lights || 0, ALL.length)) { const slot = ALL[S.lights.length]; S.lights.push({ slot, name: "" }); lit.set(slot, { t: -99, name: "" }); }
         for (let i = 0; i < (o.gifts || 0); i++) { S.gifts++; if (S.presents.length < cfg.maxPresents) { const g = GIFT_ORDER[S.presents.length % GIFT_ORDER.length], pos = placePresent(S.presents.length, g); S.presents.push({ g, name: "", x: pos.x, y: pos.y }); } }
       },
-      setConfig(c) { Object.assign(cfg, c); layout(); },
+      setConfig(c) { Object.assign(cfg, c); layout(); syncLettering(); },
       demoFill(kind) { // solo para la página de demostración: completa una meta en cascada rápida, sin carteles
         if (destroyed) return;
         curEid = ++eidN;
@@ -384,7 +639,9 @@
       // nieve lejana
       ctx.fillStyle = "rgba(255,255,255,0.55)";
       for (const f of outSnow) { const y = (f.y + f.v * t) % 1100 - 10, x = f.x + Math.sin(t * 0.7 + f.ph) * 12; ctx.beginPath(); ctx.arc(x, y, f.r, 0, TAU); ctx.fill(); }
-      // textos
+      // textos: lettering (madera pintada) o, si no está disponible, el título clásico. Nunca los dos.
+      const names = cfg.showRecent ? S.recent.map((r) => r.name).filter(Boolean).slice(0, 3) : [];
+      if (lettering && cfg.lettering !== false && lettering.draw(ctx, subtitleText(), cfg.shakeCmd, names)) return;
       ctx.save(); ctx.textAlign = "left"; ctx.fillStyle = "#fff4dc"; ctx.shadowColor = "rgba(255,200,120,0.35)"; ctx.shadowBlur = 24;
       const lines = String(cfg.title).split("|").map((l) => l.trim());
       let fs = 120; ctx.font = `700 ${fs}px 'Playfair Display', serif`;
@@ -646,6 +903,7 @@
       if (destroyed) return;
       destroyed = true;
       cancelAnimationFrame(rafId); rafId = 0;
+      if (lettering) { lettering.destroy(); lettering = null; }
       const pending = !!saveT || queue.length > 0 || pendCeleb.length > 0; clearTimeout(saveT); saveT = 0;
       if (storage && pending) writeNow();               // guarda lo pendiente (estado y cola) en vez de perderlo; si no hay nada pendiente no toca lo guardado
       queue.length = 0;

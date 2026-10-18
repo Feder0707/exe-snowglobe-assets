@@ -16,6 +16,7 @@ CC0 does not require attribution; the authors are credited as a courtesy. Change
 
 ## Fonts (SIL Open Font License 1.1, licence texts in `fonts/`)
 
+- Elsie and Elsie Swash Caps — Copyright (c) 2010-2012 Alejandro Inler, with Reserved Font Name "Elsie" (full-screen title)
 - Quicksand — Copyright The Quicksand Project Authors
 - Playfair Display — Copyright The Playfair Display Project Authors
 - Cinzel — Copyright The Cinzel Project Authors
